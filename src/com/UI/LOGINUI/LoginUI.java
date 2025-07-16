@@ -1,15 +1,12 @@
 package com.UI.LOGINUI;
-import com.server.ChatServer;
+
 import com.UI.chat.ChatWindow;
 import javafx.animation.FadeTransition;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
-import javafx.scene.control.ButtonType;
-import javafx.scene.control.TextField;
+import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.CycleMethod;
@@ -20,26 +17,27 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
+import java.net.*;
+import java.util.*;
+
 public class LoginUI extends Application {
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Login");
 
         // Background gradient
-        Stop[] stops = new Stop[]{
+        Stop[] stops = {
                 new Stop(0, Color.web("#4ca1af")),
                 new Stop(1, Color.web("#c4e0e5"))
         };
         LinearGradient bgGradient = new LinearGradient(
-                0, 0, 1, 1, true, CycleMethod.NO_CYCLE, stops
+                0,0,1,1,true,CycleMethod.NO_CYCLE,stops
         );
 
-        VBox root = new VBox(30);
-        root.setAlignment(Pos.CENTER);
-        root.setPadding(new Insets(60));
-        root.setBackground(new Background(new BackgroundFill(
-                bgGradient, CornerRadii.EMPTY, Insets.EMPTY
-        )));
+        // Build your form
+        VBox form = new VBox(20);
+        form.setAlignment(Pos.CENTER);
+        form.setPadding(new Insets(40));
 
         // Animated welcome text
         HBox welcomeBox = new HBox(5);
@@ -50,55 +48,60 @@ public class LoginUI extends Application {
             letter.setFont(Font.font("Segoe UI", 50));
             letter.setFill(Color.WHITE);
             letter.setOpacity(0);
-
             FadeTransition ft = new FadeTransition(Duration.millis(400), letter);
             ft.setFromValue(0);
             ft.setToValue(1);
             ft.setDelay(Duration.millis(i * 150));
             ft.play();
-
             welcomeBox.getChildren().add(letter);
         }
 
-        // Nickname input
+        // Server address & nickname fields
+        TextField hostField = new TextField("localhost");
+        hostField.setPromptText("Server address (IP or hostname)");
+        hostField.setPrefWidth(320);
+        hostField.setStyle(
+                "-fx-background-radius:20;" +
+                        "-fx-background-color:rgba(255,255,255,0.8);" +
+                        "-fx-padding:10;"
+        );
+
         TextField nicknameField = new TextField();
         nicknameField.setPromptText("Enter your nickname");
         nicknameField.setPrefWidth(320);
         nicknameField.setStyle(
-                "-fx-background-radius: 20; " +
-                        "-fx-background-color: rgba(255, 255, 255, 0.8); " +
-                        "-fx-padding: 12;"
+                "-fx-background-radius:20;" +
+                        "-fx-background-color:rgba(255,255,255,0.8);" +
+                        "-fx-padding:10;"
         );
 
         // Login button
         Button loginButton = new Button("Login");
-        loginButton.setFont(Font.font("Segoe UI", 18));
+        loginButton.setFont(Font.font("Segoe UI",18));
         loginButton.setTextFill(Color.WHITE);
         loginButton.setBackground(new Background(new BackgroundFill(
                 Color.web("#16a085"), new CornerRadii(20), Insets.EMPTY
         )));
-        loginButton.setPadding(new Insets(12, 30, 12, 30));
-        loginButton.setOnMouseEntered(e -> loginButton.setBackground(
-                new Background(new BackgroundFill(
+        loginButton.setPadding(new Insets(12,30,12,30));
+        loginButton.setOnMouseEntered(e ->
+                loginButton.setBackground(new Background(new BackgroundFill(
                         Color.web("#1abc9c"), new CornerRadii(20), Insets.EMPTY
-                ))
-        ));
-        loginButton.setOnMouseExited(e -> loginButton.setBackground(
-                new Background(new BackgroundFill(
+                ))));
+        loginButton.setOnMouseExited(e ->
+                loginButton.setBackground(new Background(new BackgroundFill(
                         Color.web("#16a085"), new CornerRadii(20), Insets.EMPTY
-                ))
-        ));
+                ))));
         loginButton.setOnAction(e -> {
+            String host = hostField.getText().trim();
             String nick = nicknameField.getText().trim();
-            if (nick.isEmpty()) {
+            if (host.isEmpty() || nick.isEmpty()) {
                 new Alert(Alert.AlertType.WARNING,
-                        "Please enter your nickname.", ButtonType.OK)
-                        .showAndWait();
+                        "Please enter both server address and your nickname.",
+                        ButtonType.OK).showAndWait();
             } else {
                 try {
-                    // Replace with your server’s host/IP if not localhost
-                    new ChatWindow("localhost", 5555, nick);
-                    primaryStage.close();   // close the login window
+                    new ChatWindow(host, 5555, nick);
+                    primaryStage.close();
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     new Alert(Alert.AlertType.ERROR,
@@ -108,12 +111,54 @@ public class LoginUI extends Application {
             }
         });
 
+        form.getChildren().addAll(
+                welcomeBox,
+                hostField,
+                nicknameField,
+                loginButton
+        );
 
-        root.getChildren().addAll(welcomeBox, nicknameField, loginButton);
+        // Wrap form in a BorderPane
+        BorderPane root = new BorderPane(form);
+        root.setBackground(new Background(new BackgroundFill(
+                bgGradient, CornerRadii.EMPTY, Insets.EMPTY
+        )));
 
-        Scene scene = new Scene(root, 520, 420);
+        // Fetch local IPv4
+        String localIp = getLocalIPv4();
+        Label ipLabel = new Label("Your IP: " + localIp);
+        ipLabel.setTextFill(Color.rgb(255,255,255,0.5));
+        ipLabel.setFont(Font.font(12));
+        ipLabel.setPadding(new Insets(5));
+
+        // Place IP label in bottom-right
+        StackPane bottomRight = new StackPane(ipLabel);
+        bottomRight.setPadding(new Insets(0, 10, 10, 0));
+        StackPane.setAlignment(ipLabel, Pos.BOTTOM_RIGHT);
+        root.setBottom(bottomRight);
+
+        // Show scene
+        Scene scene = new Scene(root, 520, 460);
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    /**
+     * Returns the first non-loopback IPv4 address found, or "127.0.0.1" if none.
+     */
+    private String getLocalIPv4() {
+        try {
+            for (NetworkInterface nif : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                for (InetAddress addr : Collections.list(nif.getInetAddresses())) {
+                    if (!addr.isLoopbackAddress() && addr instanceof Inet4Address) {
+                        return addr.getHostAddress();
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return "127.0.0.1";
     }
 
     public static void main(String[] args) {
